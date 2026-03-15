@@ -4,15 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>STRC Retirement Model — Digital Social Security for Gen Z</title>
-  <meta name="description" content="Model what happens when Gen Z allocates 6.2% of their paycheck to STRC instead of Social Security. Interactive calculator with monthly compounding." />
-  <meta property="og:title" content="STRC Retirement Model — Digital Social Security" />
-  <meta property="og:description" content="What if Gen Z's 6.2% Social Security tax went to STRC instead? Run the numbers yourself." />
+  <meta name="description" content="Model what happens when Gen Z allocates 6.2% of their paycheck to STRC instead of Social Security." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Inter', Arial, sans-serif; background: #F2F2F2; color: #000; -webkit-font-smoothing: antialiased; }
@@ -21,313 +16,459 @@
     input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-thumb { background: #D2D2D2; border-radius: 3px; }
-    ::-webkit-scrollbar-track { background: transparent; }
+
+    .wrap { padding: 20px 16px; max-width: 1240px; margin: 0 auto; }
+    .header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+    .logo { width: 34px; height: 34px; background: #FA660F; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .logo span { color: #FFF; font-weight: 800; font-size: 17px; }
+    h1 { font-size: 22px; font-weight: 700; }
+    .subtitle { font-size: 13px; color: #484747; margin-bottom: 20px; line-height: 1.5; }
+
+    .layout { display: flex; gap: 20px; }
+    .sidebar { width: 270px; flex-shrink: 0; }
+    .sidebar-inner { background: #FFF; border-radius: 12px; padding: 18px; border: 1px solid #E4E4E4; position: sticky; top: 16px; }
+    .main { flex: 1; min-width: 0; }
+
+    .section-title { font-size: 12px; font-weight: 700; color: #FA660F; margin: 0 0 14px; text-transform: uppercase; letter-spacing: 0.08em; }
+    .divider { border-top: 1px solid #E4E4E4; margin: 10px 0; padding-top: 10px; }
+
+    .inp-group { margin-bottom: 14px; }
+    .inp-label { display: block; font-size: 11px; font-weight: 600; color: #484747; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .inp-row { display: flex; align-items: center; gap: 6px; }
+    .inp-prefix { font-size: 13px; color: #A8A8A8; font-weight: 600; }
+    .inp-suffix { font-size: 12px; color: #A8A8A8; font-weight: 600; min-width: 16px; }
+    .inp-help { font-size: 10px; color: #A8A8A8; margin-top: 2px; }
+    input[type=number] {
+      width: 100%; padding: 7px 10px; border: 1px solid #E4E4E4; border-radius: 6px;
+      font-size: 14px; font-weight: 600; color: #000; background: #FFF; outline: none;
+      font-family: 'Inter', Arial, sans-serif;
+    }
+    input[type=number]:focus { border-color: #FA660F; }
+
+    .stats { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+    .stat { border-radius: 10px; padding: 16px 18px; }
+    .stat.dark { background: #000; }
+    .stat.light { background: #FFF; border: 1px solid #E4E4E4; }
+    .stat-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
+    .stat.dark .stat-label { color: #A8A8A8; }
+    .stat.light .stat-label { color: #484747; }
+    .stat-value { font-size: 24px; font-weight: 700; line-height: 1.1; }
+    .stat.dark .stat-value { color: #FA660F; }
+    .stat.light .stat-value { color: #000; }
+    .stat-sub { font-size: 11px; color: #A8A8A8; margin-top: 4px; }
+
+    .tabs { display: flex; border-bottom: 2px solid #E4E4E4; }
+    .tab-btn { padding: 9px 18px; font-size: 12px; font-weight: 600; font-family: 'Inter', Arial, sans-serif; color: #484747; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; margin-bottom: -2px; }
+    .tab-btn.active { color: #FA660F; border-bottom-color: #FA660F; }
+
+    .tab-panel { background: #FFF; border-radius: 0 0 12px 12px; padding: 22px; border: 1px solid #E4E4E4; border-top: none; display: none; }
+    .tab-panel.active { display: block; }
+    .chart-title { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+    .chart-sub { font-size: 11px; color: #A8A8A8; margin-bottom: 18px; }
+
+    canvas { max-height: 360px; }
+
+    .data-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .data-table thead tr { background: #000; }
+    .data-table th { padding: 9px 7px; color: #FFF; font-weight: 600; text-align: right; font-size: 10px; white-space: nowrap; }
+    .data-table td { padding: 6px 7px; text-align: right; }
+    .data-table tbody tr:nth-child(even) { background: #FFF; }
+    .data-table tbody tr:nth-child(odd) { background: #F2F2F2; }
+    .data-table tbody tr.last-row { background: #FFF3EB; border-bottom: 2px solid #FA660F; font-weight: 700; }
+    .data-table .highlight { color: #FA660F; }
+    .table-wrap { overflow-x: auto; }
+
+    .compare-box { background: #000; border-radius: 12px; padding: 22px; margin-top: 18px; }
+    .compare-title { font-size: 14px; font-weight: 700; color: #FA660F; margin-bottom: 14px; }
+    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .compare-label { font-size: 10px; color: #A8A8A8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+    .compare-val { font-size: 19px; font-weight: 700; }
+    .compare-val.orange { color: #FA660F; }
+    .compare-val.white { color: #FFF; }
+    .compare-val.gray { color: #717171; }
+    .compare-note { font-size: 10px; color: #A8A8A8; margin-top: 2px; }
+    .compare-features { border-top: 1px solid #333; margin-top: 18px; padding-top: 14px; display: flex; gap: 20px; flex-wrap: wrap; }
+    .feature { flex: 1; min-width: 140px; }
+    .feature-label { font-size: 10px; color: #A8A8A8; text-transform: uppercase; margin-bottom: 5px; }
+    .feature-strc { font-size: 11px; color: #FA660F; font-weight: 600; margin-bottom: 2px; }
+    .feature-ss { font-size: 11px; color: #717171; }
+
+    .disclaimer { font-size: 9px; color: #A8A8A8; margin-top: 14px; line-height: 1.5; }
+
     @media (max-width: 860px) {
-      .dashboard-layout { flex-direction: column !important; }
-      .sidebar { width: 100% !important; position: static !important; }
+      .layout { flex-direction: column; }
+      .sidebar { width: 100%; }
       .sidebar-inner { position: static !important; }
-      .stats-grid { grid-template-columns: 1fr 1fr !important; }
+      .stats { grid-template-columns: 1fr 1fr; }
     }
     @media (max-width: 520px) {
-      .stats-grid { grid-template-columns: 1fr !important; }
+      .stats { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
-  <div id="root"></div>
+<div class="wrap">
+  <div class="header">
+    <div class="logo"><span>S</span></div>
+    <h1>STRC Retirement Model</h1>
+  </div>
+  <p class="subtitle">Digital Social Security — What happens when Gen Z allocates their 6.2% payroll tax to STRC instead?</p>
 
-  <script type="text/babel">
-    const { useState, useMemo } = React;
-    const { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Bar, Line } = Recharts;
+  <div class="layout">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-inner">
+        <h3 class="section-title">Assumptions</h3>
+        <div class="inp-group">
+          <label class="inp-label">Starting Salary</label>
+          <div class="inp-row"><span class="inp-prefix">$</span><input type="number" id="in-sal" value="100000" step="5000"></div>
+          <div class="inp-help">Gross annual at age 22</div>
+        </div>
+        <div class="inp-group">
+          <label class="inp-label">Annual Raise</label>
+          <div class="inp-row"><input type="number" id="in-gr" value="3.0" step="0.5" min="0" max="20"><span class="inp-suffix">%</span></div>
+        </div>
+        <div class="inp-group">
+          <label class="inp-label">Paycheck Allocation</label>
+          <div class="inp-row"><input type="number" id="in-rt" value="6.2" step="0.1" min="0" max="30"><span class="inp-suffix">%</span></div>
+          <div class="inp-help">SS tax = 6.2%</div>
+        </div>
+        <div class="inp-group">
+          <label class="inp-label">Start Age</label>
+          <div class="inp-row"><input type="number" id="in-sa" value="22" min="18" max="55"></div>
+        </div>
+        <div class="inp-group">
+          <label class="inp-label">Retirement Age</label>
+          <div class="inp-row"><input type="number" id="in-ra" value="67" min="30" max="85"></div>
+        </div>
 
-    const C = { orange: "#FA660F", black: "#000000", white: "#FFFFFF", bg: "#F2F2F2", border: "#E4E4E4", gray: "#484747", muted: "#A8A8A8", subtle: "#D2D2D2" };
-
-    function fmt$(v) {
-      if (Math.abs(v) >= 1e6) return `$${(v/1e6).toFixed(2)}M`;
-      if (Math.abs(v) >= 1e3) return `$${(v/1e3).toFixed(1)}K`;
-      return `$${v.toFixed(0)}`;
-    }
-    function fmtFull(v) { return "$" + Math.round(v).toLocaleString("en-US"); }
-
-    function Input({ label, value, onChange, suffix, step, min, max, help }) {
-      return (
-        <div style={{ marginBottom: 14 }}>
-          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.gray, marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</label>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            {suffix === "$" && <span style={{ fontSize: 13, color: C.muted, fontWeight: 600 }}>$</span>}
-            <input type="number" value={value} onChange={e => onChange(parseFloat(e.target.value) || 0)} min={min} max={max} step={step || 1}
-              style={{ width: "100%", padding: "7px 10px", border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 14, fontWeight: 600, color: C.black, background: C.white, outline: "none", fontFamily: "Inter, Arial, sans-serif", transition: "border-color 0.15s" }}
-              onFocus={e => e.target.style.borderColor = C.orange} onBlur={e => e.target.style.borderColor = C.border} />
-            {suffix && suffix !== "$" && <span style={{ fontSize: 12, color: C.muted, fontWeight: 600, minWidth: 16 }}>{suffix}</span>}
+        <div class="divider">
+          <h3 class="section-title">STRC Settings</h3>
+          <div class="inp-group">
+            <label class="inp-label">Share Price</label>
+            <div class="inp-row"><span class="inp-prefix">$</span><input type="number" id="in-pr" value="100"></div>
+            <div class="inp-help">STRC pegged ~$100</div>
           </div>
-          {help && <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{help}</div>}
+          <div class="inp-group">
+            <label class="inp-label">Starting Div Yield</label>
+            <div class="inp-row"><input type="number" id="in-ds" value="11.5" step="0.25" min="0" max="30"><span class="inp-suffix">%</span></div>
+          </div>
+          <div class="inp-group">
+            <label class="inp-label">Ending Div Yield</label>
+            <div class="inp-row"><input type="number" id="in-de" value="6.0" step="0.25" min="0" max="30"><span class="inp-suffix">%</span></div>
+            <div class="inp-help">At retirement (linear taper)</div>
+          </div>
+          <div class="inp-group">
+            <label class="inp-label">Div Reinvestment</label>
+            <div class="inp-row"><input type="number" id="in-ri" value="100" step="5" min="0" max="100"><span class="inp-suffix">%</span></div>
+            <div class="inp-help">% of dividends reinvested</div>
+          </div>
         </div>
-      );
-    }
 
-    function Stat({ label, value, sub, dark }) {
-      return (
-        <div style={{ background: dark ? C.black : C.white, border: dark ? "none" : `1px solid ${C.border}`, borderRadius: 10, padding: "16px 18px" }}>
-          <div style={{ fontSize: 10, fontWeight: 600, color: dark ? C.muted : C.gray, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>{label}</div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: dark ? C.orange : C.black, lineHeight: 1.1 }}>{value}</div>
-          {sub && <div style={{ fontSize: 11, color: dark ? C.muted : C.muted, marginTop: 4 }}>{sub}</div>}
+        <div class="divider">
+          <h3 class="section-title">Comparison</h3>
+          <div class="inp-group">
+            <label class="inp-label">Inflation Rate</label>
+            <div class="inp-row"><input type="number" id="in-inf" value="8.0" step="0.5" min="0" max="25"><span class="inp-suffix">%</span></div>
+          </div>
+          <div class="inp-group">
+            <label class="inp-label">Avg SS Benefit (Mo)</label>
+            <div class="inp-row"><span class="inp-prefix">$</span><input type="number" id="in-ass" value="2074" step="50"></div>
+          </div>
+          <div class="inp-group">
+            <label class="inp-label">Max SS Benefit (Mo)</label>
+            <div class="inp-row"><span class="inp-prefix">$</span><input type="number" id="in-mss" value="4152" step="50"></div>
+          </div>
         </div>
-      );
-    }
+      </div>
+    </div>
 
-    function App() {
-      const [salary, setSalary] = useState(100000);
-      const [growth, setGrowth] = useState(3.0);
-      const [rate, setRate] = useState(6.2);
-      const [startAge, setStartAge] = useState(22);
-      const [retireAge, setRetireAge] = useState(67);
-      const [price, setPrice] = useState(100);
-      const [divStart, setDivStart] = useState(11.5);
-      const [divEnd, setDivEnd] = useState(6.0);
-      const [reinvest, setReinvest] = useState(100);
-      const [inflation, setInflation] = useState(8.0);
-      const [avgSS, setAvgSS] = useState(2074);
-      const [maxSS, setMaxSS] = useState(4152);
-      const [tab, setTab] = useState("chart");
-      const [mobileInputs, setMobileInputs] = useState(false);
+    <!-- MAIN -->
+    <div class="main">
+      <div class="stats" id="stats-grid"></div>
 
-      const { yearly, summary } = useMemo(() => {
-        const yrs = retireAge - startAge;
-        const months = yrs * 12;
-        if (months <= 0 || months > 1200) return { yearly: [], summary: null };
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="chart">Portfolio Growth</button>
+        <button class="tab-btn" data-tab="income">Income vs SS</button>
+        <button class="tab-btn" data-tab="table">Yearly Data</button>
+      </div>
 
-        const monthly = [];
-        let bom = 0, cumC = 0, cumD = 0;
+      <div class="tab-panel active" id="panel-chart">
+        <h3 class="chart-title">Portfolio Value Over Time</h3>
+        <p class="chart-sub">STRC shares with reinvested ROC dividends, monthly compounding</p>
+        <canvas id="chartPortfolio"></canvas>
+      </div>
 
-        for (let m = 0; m < months; m++) {
-          const yr = Math.floor(m / 12) + 1;
-          const sal = salary * Math.pow(1 + growth / 100, yr - 1);
-          const contrib = sal * (rate / 100) / 12;
-          const divR = months > 1 ? (divStart / 100) - ((divStart / 100) - (divEnd / 100)) * m / (months - 1) : divStart / 100;
-          const newS = contrib / price;
-          const divI = (bom + newS) * price * divR / 12;
-          const reS = (divI * reinvest / 100) / price;
-          const eom = bom + newS + reS;
-          cumC += contrib;
-          cumD += divI;
-          monthly.push({ yr, age: startAge + yr - 1, sal, contrib, divR, bom, newS, divI, reS, eom, pv: eom * price, cumC, cumD, basis: Math.max(0, cumC - cumD), inflPV: (eom * price) / Math.pow(1 + inflation / 100, yr) });
-          bom = eom;
-        }
+      <div class="tab-panel" id="panel-income">
+        <h3 class="chart-title">Monthly Dividend Income vs Social Security</h3>
+        <p class="chart-sub">STRC monthly income compared to avg and max SS benefits</p>
+        <canvas id="chartIncome"></canvas>
+      </div>
 
-        const yearly = [];
-        for (let y = 0; y < yrs; y++) {
-          const end = monthly[(y + 1) * 12 - 1];
-          let yrDiv = 0;
-          for (let m = y * 12; m < (y + 1) * 12; m++) yrDiv += monthly[m].divI;
-          yearly.push({ year: y + 1, age: end.age, salary: end.sal, annContrib: end.contrib * 12, divRate: end.divR, shares: end.eom, portfolio: end.pv, annDiv: yrDiv, moDiv: end.divI, cumC: end.cumC, basis: end.basis, inflPV: end.inflPV });
-        }
+      <div class="tab-panel" id="panel-table">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Yr</th><th>Age</th><th>Salary</th><th>Annual Contrib</th><th>Div Rate</th><th>Shares</th><th>Portfolio</th><th>Annual Divs</th><th>Mo. Div</th><th>Basis</th></tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
+      </div>
 
-        const f = monthly[months - 1];
-        return {
-          yearly,
-          summary: {
-            pv: f.pv, moDiv: f.divI, cumC: f.cumC, shares: f.eom, inflPV: f.inflPV,
-            mult: f.pv / f.cumC, vsAvg: f.divI / avgSS, vsMax: f.divI / maxSS
+      <div class="compare-box" id="compare-box"></div>
+
+      <p class="disclaimer">This model is for illustrative purposes only. Assumptions include monthly compounding, linear dividend rate taper, constant share price, and ROC tax treatment. This is not financial advice. Past performance and current dividend rates do not guarantee future results.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // ── Helpers ──
+  var O = '#FA660F';
+  function fmt$(v) {
+    if (Math.abs(v) >= 1e6) return '$' + (v/1e6).toFixed(2) + 'M';
+    if (Math.abs(v) >= 1e3) return '$' + (v/1e3).toFixed(1) + 'K';
+    return '$' + v.toFixed(0);
+  }
+  function fFull(v) { return '$' + Math.round(v).toLocaleString('en-US'); }
+
+  // ── Inputs ──
+  var ids = ['sal','gr','rt','sa','ra','pr','ds','de','ri','inf','ass','mss'];
+  function getVal(id) { return parseFloat(document.getElementById('in-' + id).value) || 0; }
+
+  // ── Charts ──
+  var chartPortfolio = null;
+  var chartIncome = null;
+
+  function initCharts() {
+    var ctxP = document.getElementById('chartPortfolio').getContext('2d');
+    chartPortfolio = new Chart(ctxP, {
+      type: 'line',
+      data: { labels: [], datasets: [{
+        label: 'Portfolio Value',
+        data: [],
+        borderColor: O,
+        backgroundColor: 'rgba(250,102,15,0.12)',
+        fill: true,
+        borderWidth: 2.5,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        tension: 0.3
+      }]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: {
+          callbacks: {
+            title: function(items) { return 'Age ' + items[0].label; },
+            label: function(item) { return 'Portfolio: ' + fFull(item.raw); }
           }
-        };
-      }, [salary, growth, rate, startAge, retireAge, price, divStart, divEnd, reinvest, inflation, avgSS, maxSS]);
+        }},
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 11, family: 'Inter' }, color: '#484747' }},
+          y: { grid: { color: '#E4E4E4' }, ticks: { font: { size: 11, family: 'Inter' }, color: '#484747', callback: function(v) { return fmt$(v); } }}
+        }
+      }
+    });
 
-      const chartData = yearly.map(y => ({ age: y.age, year: y.year, portfolio: Math.round(y.portfolio), monthlyDiv: Math.round(y.moDiv), annualDiv: Math.round(y.annDiv) }));
-      const s = summary;
+    var ctxI = document.getElementById('chartIncome').getContext('2d');
+    chartIncome = new Chart(ctxI, {
+      type: 'bar',
+      data: { labels: [], datasets: [{
+        label: 'STRC Monthly Dividend',
+        data: [],
+        backgroundColor: 'rgba(250,102,15,0.7)',
+        borderRadius: 2
+      }]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: function(items) { return 'Age ' + items[0].label; },
+              label: function(item) { return 'STRC Dividend: ' + fFull(item.raw); }
+            }
+          },
+          annotation: { annotations: {} }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 11, family: 'Inter' }, color: '#484747' }},
+          y: { grid: { color: '#E4E4E4' }, ticks: { font: { size: 11, family: 'Inter' }, color: '#484747', callback: function(v) { return fmt$(v); } }}
+        }
+      },
+      plugins: [{
+        id: 'ssLines',
+        afterDraw: function(chart) {
+          var avgSS = getVal('ass');
+          var maxSS = getVal('mss');
+          var yScale = chart.scales.y;
+          var ctx = chart.ctx;
+          var area = chart.chartArea;
 
-      const inputPanel = (
-        <>
-          <h3 style={{ fontSize: 12, fontWeight: 700, color: C.orange, margin: "0 0 14px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Assumptions</h3>
-          <Input label="Starting Salary" value={salary} onChange={setSalary} suffix="$" step={5000} help="Gross annual at age 22" />
-          <Input label="Annual Raise" value={growth} onChange={setGrowth} suffix="%" step={0.5} min={0} max={20} />
-          <Input label="Paycheck Allocation" value={rate} onChange={setRate} suffix="%" step={0.1} min={0} max={30} help="SS tax = 6.2%" />
-          <Input label="Start Age" value={startAge} onChange={setStartAge} min={18} max={55} />
-          <Input label="Retirement Age" value={retireAge} onChange={setRetireAge} min={30} max={85} />
-          <div style={{ borderTop: `1px solid ${C.border}`, margin: "10px 0", paddingTop: 10 }}>
-            <h3 style={{ fontSize: 12, fontWeight: 700, color: C.orange, margin: "0 0 12px", textTransform: "uppercase", letterSpacing: "0.08em" }}>STRC Settings</h3>
-            <Input label="Share Price" value={price} onChange={setPrice} suffix="$" help="STRC pegged ~$100" />
-            <Input label="Starting Dividend Yield" value={divStart} onChange={setDivStart} suffix="%" step={0.25} min={0} max={30} />
-            <Input label="Ending Dividend Yield" value={divEnd} onChange={setDivEnd} suffix="%" step={0.25} min={0} max={30} help="Rate at retirement (linear taper)" />
-            <Input label="Dividend Reinvestment" value={reinvest} onChange={setReinvest} suffix="%" step={5} min={0} max={100} help="% of dividends reinvested" />
-          </div>
-          <div style={{ borderTop: `1px solid ${C.border}`, margin: "10px 0", paddingTop: 10 }}>
-            <h3 style={{ fontSize: 12, fontWeight: 700, color: C.orange, margin: "0 0 12px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Comparison</h3>
-            <Input label="Inflation Rate" value={inflation} onChange={setInflation} suffix="%" step={0.5} min={0} max={25} />
-            <Input label="Avg SS Benefit (Mo)" value={avgSS} onChange={setAvgSS} suffix="$" step={50} />
-            <Input label="Max SS Benefit (Mo)" value={maxSS} onChange={setMaxSS} suffix="$" step={50} />
-          </div>
-        </>
-      );
+          // Avg SS line
+          var yAvg = yScale.getPixelForValue(avgSS);
+          if (yAvg >= area.top && yAvg <= area.bottom) {
+            ctx.save();
+            ctx.setLineDash([8, 4]);
+            ctx.strokeStyle = '#717171';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(area.left, yAvg);
+            ctx.lineTo(area.right, yAvg);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#717171';
+            ctx.font = '10px Inter';
+            ctx.textAlign = 'right';
+            ctx.fillText('Avg SS $' + avgSS.toLocaleString(), area.right - 4, yAvg - 5);
+            ctx.restore();
+          }
 
-      return (
-        <div style={{ padding: "20px 16px", maxWidth: 1240, margin: "0 auto" }}>
-          {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-            <div style={{ width: 34, height: 34, background: C.orange, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <span style={{ color: C.white, fontWeight: 800, fontSize: 17 }}>S</span>
-            </div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: C.black }}>STRC Retirement Model</h1>
-          </div>
-          <p style={{ fontSize: 13, color: C.gray, marginBottom: 20, lineHeight: 1.5 }}>
-            Digital Social Security — What happens when Gen Z allocates their 6.2% payroll tax to STRC instead?
-          </p>
+          // Max SS line
+          var yMax = yScale.getPixelForValue(maxSS);
+          if (yMax >= area.top && yMax <= area.bottom) {
+            ctx.save();
+            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = '#C00000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(area.left, yMax);
+            ctx.lineTo(area.right, yMax);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#C00000';
+            ctx.font = '10px Inter';
+            ctx.textAlign = 'right';
+            ctx.fillText('Max SS $' + maxSS.toLocaleString(), area.right - 4, yMax - 5);
+            ctx.restore();
+          }
+        }
+      }]
+    });
+  }
 
-          {/* Mobile toggle */}
-          <button onClick={() => setMobileInputs(!mobileInputs)}
-            style={{ display: "none", width: "100%", padding: "10px", marginBottom: 16, background: C.black, color: C.white, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "Inter, Arial" }}
-            className="mobile-toggle">
-            {mobileInputs ? "Hide Assumptions" : "Edit Assumptions"}
-          </button>
+  // ── Compute model ──
+  function compute() {
+    var sal = getVal('sal'), gr = getVal('gr'), rt = getVal('rt');
+    var sa = getVal('sa'), ra = getVal('ra'), pr = getVal('pr');
+    var ds = getVal('ds'), de = getVal('de'), ri = getVal('ri');
+    var avgSS = getVal('ass'), maxSS = getVal('mss');
 
-          <div className="dashboard-layout" style={{ display: "flex", gap: 20 }}>
-            {/* Sidebar */}
-            <div className="sidebar" style={{ width: 270, flexShrink: 0 }}>
-              <div className="sidebar-inner" style={{ background: C.white, borderRadius: 12, padding: 18, border: `1px solid ${C.border}`, position: "sticky", top: 16 }}>
-                {inputPanel}
-              </div>
-            </div>
+    var yrs = ra - sa;
+    var mos = yrs * 12;
+    if (mos <= 0 || mos > 1200) return;
 
-            {/* Main */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              {s && (
-                <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 18 }}>
-                  <Stat dark label="Portfolio at Retirement" value={fmt$(s.pv)} sub={`${fmtFull(s.cumC)} in → ${s.mult.toFixed(1)}x`} />
-                  <Stat label="Monthly Dividend" value={fmt$(s.moDiv)} sub={`${s.vsAvg.toFixed(1)}x avg SS (${fmt$(avgSS)})`} />
-                  <Stat label="Shares Owned" value={Math.round(s.shares).toLocaleString()} sub={`at $${price}/share`} />
-                  <Stat label="vs Max SS" value={`${s.vsMax.toFixed(1)}x`} sub={`Max SS = ${fmt$(maxSS)}/mo`} />
-                </div>
-              )}
-
-              {/* Tabs */}
-              <div style={{ display: "flex", borderBottom: `2px solid ${C.border}` }}>
-                {[{k:"chart",l:"Portfolio Growth"},{k:"income",l:"Income vs SS"},{k:"table",l:"Yearly Data"}].map(t => (
-                  <button key={t.k} onClick={() => setTab(t.k)}
-                    style={{ padding: "9px 18px", fontSize: 12, fontWeight: 600, fontFamily: "Inter, Arial", color: tab === t.k ? C.orange : C.gray, background: "none", border: "none", borderBottom: tab === t.k ? `2px solid ${C.orange}` : "2px solid transparent", cursor: "pointer", marginBottom: -2 }}>
-                    {t.l}
-                  </button>
-                ))}
-              </div>
-
-              {/* Portfolio Chart */}
-              {tab === "chart" && (
-                <div style={{ background: C.white, borderRadius: "0 0 12px 12px", padding: 22, border: `1px solid ${C.border}`, borderTop: "none" }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>Portfolio Value Over Time</h3>
-                  <p style={{ fontSize: 11, color: C.muted, marginBottom: 18 }}>STRC shares with reinvested ROC dividends, monthly compounding</p>
-                  <ResponsiveContainer width="100%" height={360}>
-                    <AreaChart data={chartData}>
-                      <defs><linearGradient id="gO" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={C.orange} stopOpacity={0.25}/><stop offset="95%" stopColor={C.orange} stopOpacity={0.02}/></linearGradient></defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
-                      <XAxis dataKey="age" tick={{fontSize:11,fill:C.gray}} label={{value:"Age",position:"insideBottom",offset:-5,fontSize:11,fill:C.gray}} />
-                      <YAxis tick={{fontSize:11,fill:C.gray}} tickFormatter={fmt$} width={68} />
-                      <Tooltip formatter={(v) => [fmtFull(v), "Portfolio"]} labelFormatter={v => `Age ${v}`} contentStyle={{fontFamily:"Inter,Arial",fontSize:12,borderRadius:8}} />
-                      <Area type="monotone" dataKey="portfolio" stroke={C.orange} fill="url(#gO)" strokeWidth={2.5} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-
-              {/* Income Chart */}
-              {tab === "income" && (
-                <div style={{ background: C.white, borderRadius: "0 0 12px 12px", padding: 22, border: `1px solid ${C.border}`, borderTop: "none" }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>Monthly Dividend Income vs Social Security</h3>
-                  <p style={{ fontSize: 11, color: C.muted, marginBottom: 18 }}>STRC monthly income compared to avg and max SS benefits</p>
-                  <ResponsiveContainer width="100%" height={360}>
-                    <ComposedChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
-                      <XAxis dataKey="age" tick={{fontSize:11,fill:C.gray}} label={{value:"Age",position:"insideBottom",offset:-5,fontSize:11,fill:C.gray}} />
-                      <YAxis tick={{fontSize:11,fill:C.gray}} tickFormatter={fmt$} width={68} />
-                      <Tooltip formatter={(v,name) => { const n={monthlyDiv:"STRC Monthly Div",avgLine:"Avg SS",maxLine:"Max SS"}; return [typeof v==="number"?fmtFull(v):v, n[name]||name]; }} labelFormatter={v=>`Age ${v}`} contentStyle={{fontFamily:"Inter,Arial",fontSize:12,borderRadius:8}} />
-                      <Bar dataKey="monthlyDiv" fill={C.orange} opacity={0.7} radius={[2,2,0,0]} />
-                      <Line dataKey={() => avgSS} stroke="#717171" strokeWidth={2} strokeDasharray="8 4" dot={false} name="avgLine" />
-                      <Line dataKey={() => maxSS} stroke="#C00000" strokeWidth={2} strokeDasharray="4 4" dot={false} name="maxLine" />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                  <div style={{ display: "flex", gap: 18, justifyContent: "center", marginTop: 10, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 11, color: C.gray, display: "flex", alignItems: "center", gap: 5 }}><span style={{width:12,height:12,background:C.orange,borderRadius:2,opacity:0.7,display:"inline-block"}}></span> STRC Dividend</span>
-                    <span style={{ fontSize: 11, color: C.gray, display: "flex", alignItems: "center", gap: 5 }}><span style={{width:12,height:2,background:"#717171",display:"inline-block"}}></span> Avg SS (${avgSS.toLocaleString()})</span>
-                    <span style={{ fontSize: 11, color: C.gray, display: "flex", alignItems: "center", gap: 5 }}><span style={{width:12,height:2,background:"#C00000",display:"inline-block"}}></span> Max SS (${maxSS.toLocaleString()})</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Table */}
-              {tab === "table" && (
-                <div style={{ background: C.white, borderRadius: "0 0 12px 12px", padding: 18, border: `1px solid ${C.border}`, borderTop: "none", overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
-                    <thead>
-                      <tr style={{ background: C.black }}>
-                        {["Yr","Age","Salary","Annual Contrib","Div Rate","Shares","Portfolio","Annual Divs","Mo. Div","Basis"].map(h => (
-                          <th key={h} style={{ padding: "9px 7px", color: C.white, fontWeight: 600, textAlign: "right", fontSize: 10, whiteSpace: "nowrap" }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {yearly.map((y,i) => {
-                        const last = i === yearly.length-1;
-                        return (
-                          <tr key={y.year} style={{ background: last ? "#FFF3EB" : i%2===0 ? C.white : C.bg, borderBottom: last ? `2px solid ${C.orange}` : `1px solid ${C.border}`, fontWeight: last ? 700 : 400 }}>
-                            <td style={{padding:"6px 7px",textAlign:"right"}}>{y.year}</td>
-                            <td style={{padding:"6px 7px",textAlign:"right"}}>{y.age}</td>
-                            <td style={{padding:"6px 7px",textAlign:"right"}}>{fmtFull(y.salary)}</td>
-                            <td style={{padding:"6px 7px",textAlign:"right"}}>{fmtFull(y.annContrib)}</td>
-                            <td style={{padding:"6px 7px",textAlign:"right"}}>{(y.divRate*100).toFixed(2)}%</td>
-                            <td style={{padding:"6px 7px",textAlign:"right"}}>{y.shares.toFixed(1)}</td>
-                            <td style={{padding:"6px 7px",textAlign:"right",color:last?C.orange:C.black}}>{fmtFull(y.portfolio)}</td>
-                            <td style={{padding:"6px 7px",textAlign:"right"}}>{fmtFull(y.annDiv)}</td>
-                            <td style={{padding:"6px 7px",textAlign:"right",color:last?C.orange:C.black}}>{fmtFull(y.moDiv)}</td>
-                            <td style={{padding:"6px 7px",textAlign:"right"}}>{fmtFull(y.basis)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* SS Comparison */}
-              {s && (
-                <div style={{ background: C.black, borderRadius: 12, padding: 22, marginTop: 18 }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: C.orange, marginBottom: 14 }}>If STRC Replaced Social Security for Gen Z</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                    {[
-                      { l: "Total Contributed", v: fmtFull(s.cumC), sub: "Same 6.2% — identical dollars in", c: C.white },
-                      { l: "Portfolio at Retirement", v: fmtFull(s.pv), sub: "SS has no investable asset", c: C.orange },
-                      { l: "Monthly Income (STRC)", v: fmtFull(s.moDiv), c: C.orange },
-                      { l: "Monthly Income (Avg SS)", v: fmtFull(avgSS), c: "#717171" },
-                    ].map(item => (
-                      <div key={item.l}>
-                        <div style={{ fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>{item.l}</div>
-                        <div style={{ fontSize: 19, fontWeight: 700, color: item.c }}>{item.v}</div>
-                        {item.sub && <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{item.sub}</div>}
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ borderTop: "1px solid #333", marginTop: 18, paddingTop: 14, display: "flex", gap: 20, flexWrap: "wrap" }}>
-                    {[
-                      { l: "Inheritable", strc: "Yes — passes to heirs", ss: "No — dies with you" },
-                      { l: "Tax Treatment", strc: "ROC — deferred until sale", ss: "Taxed as income (up to 85%)" },
-                      { l: "Ownership", strc: "You own the asset", ss: "No asset — just a promise" },
-                    ].map(r => (
-                      <div key={r.l} style={{ flex: 1, minWidth: 140 }}>
-                        <div style={{ fontSize: 10, color: C.muted, textTransform: "uppercase", marginBottom: 5 }}>{r.l}</div>
-                        <div style={{ fontSize: 11, color: C.orange, fontWeight: 600, marginBottom: 2 }}>{r.strc}</div>
-                        <div style={{ fontSize: 11, color: "#717171" }}>{r.ss}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <p style={{ fontSize: 9, color: C.muted, marginTop: 14, lineHeight: 1.5 }}>
-                This model is for illustrative purposes only. Assumptions include monthly compounding, linear dividend rate taper, constant share price, and ROC tax treatment. This is not financial advice. Past performance and current dividend rates do not guarantee future results.
-              </p>
-            </div>
-          </div>
-        </div>
-      );
+    var bom = 0, cC = 0, cD = 0;
+    var monthly = [];
+    for (var m = 0; m < mos; m++) {
+      var yr = Math.floor(m / 12) + 1;
+      var s = sal * Math.pow(1 + gr / 100, yr - 1);
+      var c = s * (rt / 100) / 12;
+      var dr = mos > 1 ? (ds / 100) - ((ds / 100) - (de / 100)) * m / (mos - 1) : ds / 100;
+      var ns = c / pr;
+      var di = (bom + ns) * pr * dr / 12;
+      var rs = (di * ri / 100) / pr;
+      var eom = bom + ns + rs;
+      cC += c; cD += di;
+      monthly.push({ yr: yr, age: sa + yr - 1, s: s, c: c, dr: dr, bom: bom, ns: ns, di: di, rs: rs, eom: eom, pv: eom * pr, cC: cC, cD: cD, basis: Math.max(0, cC - cD) });
+      bom = eom;
     }
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
-  </script>
+    var yearly = [];
+    for (var y = 0; y < yrs; y++) {
+      var e = monthly[(y + 1) * 12 - 1];
+      var yd = 0;
+      for (var mm = y * 12; mm < (y + 1) * 12; mm++) yd += monthly[mm].di;
+      yearly.push({ year: y + 1, age: e.age, salary: e.s, ac: e.c * 12, dr: e.dr, sh: e.eom, pv: e.pv, yd: yd, md: e.di, cC: e.cC, basis: e.basis });
+    }
+
+    var f = monthly[mos - 1];
+    var summary = { pv: f.pv, md: f.di, cC: f.cC, sh: f.eom, mult: f.pv / f.cC, va: f.di / avgSS, vm: f.di / maxSS };
+
+    // ── Update stats ──
+    document.getElementById('stats-grid').innerHTML =
+      '<div class="stat dark"><div class="stat-label">Portfolio at Retirement</div><div class="stat-value">' + fmt$(summary.pv) + '</div><div class="stat-sub">' + fFull(summary.cC) + ' in | ' + summary.mult.toFixed(1) + 'x</div></div>' +
+      '<div class="stat light"><div class="stat-label">Monthly Dividend</div><div class="stat-value">' + fmt$(summary.md) + '</div><div class="stat-sub">' + summary.va.toFixed(1) + 'x avg SS (' + fmt$(avgSS) + ')</div></div>' +
+      '<div class="stat light"><div class="stat-label">Shares Owned</div><div class="stat-value">' + Math.round(summary.sh).toLocaleString() + '</div><div class="stat-sub">at $' + pr + '/share</div></div>' +
+      '<div class="stat light"><div class="stat-label">vs Max SS</div><div class="stat-value">' + summary.vm.toFixed(1) + 'x</div><div class="stat-sub">Max SS = ' + fmt$(maxSS) + '/mo</div></div>';
+
+    // ── Update charts ──
+    var labels = yearly.map(function(y) { return y.age; });
+    var pvData = yearly.map(function(y) { return Math.round(y.pv); });
+    var mdData = yearly.map(function(y) { return Math.round(y.md); });
+
+    chartPortfolio.data.labels = labels;
+    chartPortfolio.data.datasets[0].data = pvData;
+    chartPortfolio.update();
+
+    chartIncome.data.labels = labels;
+    chartIncome.data.datasets[0].data = mdData;
+    chartIncome.update();
+
+    // ── Update table ──
+    var tbody = document.getElementById('table-body');
+    var html = '';
+    for (var i = 0; i < yearly.length; i++) {
+      var r = yearly[i];
+      var isLast = i === yearly.length - 1;
+      var cls = isLast ? ' class="last-row"' : '';
+      var hc = isLast ? ' class="highlight"' : '';
+      html += '<tr' + cls + '>' +
+        '<td>' + r.year + '</td>' +
+        '<td>' + r.age + '</td>' +
+        '<td>' + fFull(r.salary) + '</td>' +
+        '<td>' + fFull(r.ac) + '</td>' +
+        '<td>' + (r.dr * 100).toFixed(2) + '%</td>' +
+        '<td>' + r.sh.toFixed(1) + '</td>' +
+        '<td' + hc + '>' + fFull(r.pv) + '</td>' +
+        '<td>' + fFull(r.yd) + '</td>' +
+        '<td' + hc + '>' + fFull(r.md) + '</td>' +
+        '<td>' + fFull(r.basis) + '</td>' +
+        '</tr>';
+    }
+    tbody.innerHTML = html;
+
+    // ── Update comparison box ──
+    document.getElementById('compare-box').innerHTML =
+      '<h3 class="compare-title">If STRC Replaced Social Security for Gen Z</h3>' +
+      '<div class="compare-grid">' +
+        '<div><div class="compare-label">Total Contributed</div><div class="compare-val white">' + fFull(summary.cC) + '</div><div class="compare-note">Same 6.2% — identical dollars in</div></div>' +
+        '<div><div class="compare-label">Portfolio at Retirement</div><div class="compare-val orange">' + fFull(summary.pv) + '</div><div class="compare-note">SS has no investable asset</div></div>' +
+        '<div><div class="compare-label">Monthly Income (STRC)</div><div class="compare-val orange">' + fFull(summary.md) + '</div></div>' +
+        '<div><div class="compare-label">Monthly Income (Avg SS)</div><div class="compare-val gray">' + fFull(avgSS) + '</div></div>' +
+      '</div>' +
+      '<div class="compare-features">' +
+        '<div class="feature"><div class="feature-label">Inheritable</div><div class="feature-strc">Yes — passes to heirs</div><div class="feature-ss">No — dies with you</div></div>' +
+        '<div class="feature"><div class="feature-label">Tax Treatment</div><div class="feature-strc">ROC — deferred until sale</div><div class="feature-ss">Taxed as income (up to 85%)</div></div>' +
+        '<div class="feature"><div class="feature-label">Ownership</div><div class="feature-strc">You own the asset</div><div class="feature-ss">No asset — just a promise</div></div>' +
+      '</div>';
+  }
+
+  // ── Tabs ──
+  document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('panel-' + btn.getAttribute('data-tab')).classList.add('active');
+
+      // Resize charts when tab switches (Chart.js needs this)
+      if (btn.getAttribute('data-tab') === 'chart' && chartPortfolio) chartPortfolio.resize();
+      if (btn.getAttribute('data-tab') === 'income' && chartIncome) chartIncome.resize();
+    });
+  });
+
+  // ── Bind inputs ──
+  ids.forEach(function(id) {
+    document.getElementById('in-' + id).addEventListener('input', compute);
+  });
+
+  // ── Init ──
+  initCharts();
+  compute();
+})();
+</script>
 </body>
 </html>
