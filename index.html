@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>STRC Retirement Model — Digital Social Security for Gen Z</title>
+  <meta name="description" content="Model what happens when Gen Z allocates 6.2% of their paycheck to STRC instead of Social Security. Interactive calculator with monthly compounding." />
+  <meta property="og:title" content="STRC Retirement Model — Digital Social Security" />
+  <meta property="og:description" content="What if Gen Z's 6.2% Social Security tax went to STRC instead? Run the numbers yourself." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', Arial, sans-serif; background: #F2F2F2; color: #000; -webkit-font-smoothing: antialiased; }
+    input[type=number] { -moz-appearance: textfield; }
+    input[type=number]::-webkit-outer-spin-button,
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #D2D2D2; border-radius: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    @media (max-width: 860px) {
+      .dashboard-layout { flex-direction: column !important; }
+      .sidebar { width: 100% !important; position: static !important; }
+      .sidebar-inner { position: static !important; }
+      .stats-grid { grid-template-columns: 1fr 1fr !important; }
+    }
+    @media (max-width: 520px) {
+      .stats-grid { grid-template-columns: 1fr !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useMemo } = React;
+    const { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Bar, Line } = Recharts;
+
+    const C = { orange: "#FA660F", black: "#000000", white: "#FFFFFF", bg: "#F2F2F2", border: "#E4E4E4", gray: "#484747", muted: "#A8A8A8", subtle: "#D2D2D2" };
+
+    function fmt$(v) {
+      if (Math.abs(v) >= 1e6) return `$${(v/1e6).toFixed(2)}M`;
+      if (Math.abs(v) >= 1e3) return `$${(v/1e3).toFixed(1)}K`;
+      return `$${v.toFixed(0)}`;
+    }
+    function fmtFull(v) { return "$" + Math.round(v).toLocaleString("en-US"); }
+
+    function Input({ label, value, onChange, suffix, step, min, max, help }) {
+      return (
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.gray, marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {suffix === "$" && <span style={{ fontSize: 13, color: C.muted, fontWeight: 600 }}>$</span>}
+            <input type="number" value={value} onChange={e => onChange(parseFloat(e.target.value) || 0)} min={min} max={max} step={step || 1}
+              style={{ width: "100%", padding: "7px 10px", border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 14, fontWeight: 600, color: C.black, background: C.white, outline: "none", fontFamily: "Inter, Arial, sans-serif", transition: "border-color 0.15s" }}
+              onFocus={e => e.target.style.borderColor = C.orange} onBlur={e => e.target.style.borderColor = C.border} />
+            {suffix && suffix !== "$" && <span style={{ fontSize: 12, color: C.muted, fontWeight: 600, minWidth: 16 }}>{suffix}</span>}
+          </div>
+          {help && <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{help}</div>}
+        </div>
+      );
+    }
+
+    function Stat({ label, value, sub, dark }) {
+      return (
+        <div style={{ background: dark ? C.black : C.white, border: dark ? "none" : `1px solid ${C.border}`, borderRadius: 10, padding: "16px 18px" }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: dark ? C.muted : C.gray, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>{label}</div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: dark ? C.orange : C.black, lineHeight: 1.1 }}>{value}</div>
+          {sub && <div style={{ fontSize: 11, color: dark ? C.muted : C.muted, marginTop: 4 }}>{sub}</div>}
+        </div>
+      );
+    }
+
+    function App() {
+      const [salary, setSalary] = useState(100000);
+      const [growth, setGrowth] = useState(3.0);
+      const [rate, setRate] = useState(6.2);
+      const [startAge, setStartAge] = useState(22);
+      const [retireAge, setRetireAge] = useState(67);
+      const [price, setPrice] = useState(100);
+      const [divStart, setDivStart] = useState(11.5);
+      const [divEnd, setDivEnd] = useState(6.0);
+      const [reinvest, setReinvest] = useState(100);
+      const [inflation, setInflation] = useState(8.0);
+      const [avgSS, setAvgSS] = useState(2074);
+      const [maxSS, setMaxSS] = useState(4152);
+      const [tab, setTab] = useState("chart");
+      const [mobileInputs, setMobileInputs] = useState(false);
+
+      const { yearly, summary } = useMemo(() => {
+        const yrs = retireAge - startAge;
+        const months = yrs * 12;
+        if (months <= 0 || months > 1200) return { yearly: [], summary: null };
+
+        const monthly = [];
+        let bom = 0, cumC = 0, cumD = 0;
+
+        for (let m = 0; m < months; m++) {
+          const yr = Math.floor(m / 12) + 1;
+          const sal = salary * Math.pow(1 + growth / 100, yr - 1);
+          const contrib = sal * (rate / 100) / 12;
+          const divR = months > 1 ? (divStart / 100) - ((divStart / 100) - (divEnd / 100)) * m / (months - 1) : divStart / 100;
+          const newS = contrib / price;
+          const divI = (bom + newS) * price * divR / 12;
+          const reS = (divI * reinvest / 100) / price;
+          const eom = bom + newS + reS;
+          cumC += contrib;
+          cumD += divI;
+          monthly.push({ yr, age: startAge + yr - 1, sal, contrib, divR, bom, newS, divI, reS, eom, pv: eom * price, cumC, cumD, basis: Math.max(0, cumC - cumD), inflPV: (eom * price) / Math.pow(1 + inflation / 100, yr) });
+          bom = eom;
+        }
+
+        const yearly = [];
+        for (let y = 0; y < yrs; y++) {
+          const end = monthly[(y + 1) * 12 - 1];
+          let yrDiv = 0;
+          for (let m = y * 12; m < (y + 1) * 12; m++) yrDiv += monthly[m].divI;
+          yearly.push({ year: y + 1, age: end.age, salary: end.sal, annContrib: end.contrib * 12, divRate: end.divR, shares: end.eom, portfolio: end.pv, annDiv: yrDiv, moDiv: end.divI, cumC: end.cumC, basis: end.basis, inflPV: end.inflPV });
+        }
+
+        const f = monthly[months - 1];
+        return {
+          yearly,
+          summary: {
+            pv: f.pv, moDiv: f.divI, cumC: f.cumC, shares: f.eom, inflPV: f.inflPV,
+            mult: f.pv / f.cumC, vsAvg: f.divI / avgSS, vsMax: f.divI / maxSS
+          }
+        };
+      }, [salary, growth, rate, startAge, retireAge, price, divStart, divEnd, reinvest, inflation, avgSS, maxSS]);
+
+      const chartData = yearly.map(y => ({ age: y.age, year: y.year, portfolio: Math.round(y.portfolio), monthlyDiv: Math.round(y.moDiv), annualDiv: Math.round(y.annDiv) }));
+      const s = summary;
+
+      const inputPanel = (
+        <>
+          <h3 style={{ fontSize: 12, fontWeight: 700, color: C.orange, margin: "0 0 14px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Assumptions</h3>
+          <Input label="Starting Salary" value={salary} onChange={setSalary} suffix="$" step={5000} help="Gross annual at age 22" />
+          <Input label="Annual Raise" value={growth} onChange={setGrowth} suffix="%" step={0.5} min={0} max={20} />
+          <Input label="Paycheck Allocation" value={rate} onChange={setRate} suffix="%" step={0.1} min={0} max={30} help="SS tax = 6.2%" />
+          <Input label="Start Age" value={startAge} onChange={setStartAge} min={18} max={55} />
+          <Input label="Retirement Age" value={retireAge} onChange={setRetireAge} min={30} max={85} />
+          <div style={{ borderTop: `1px solid ${C.border}`, margin: "10px 0", paddingTop: 10 }}>
+            <h3 style={{ fontSize: 12, fontWeight: 700, color: C.orange, margin: "0 0 12px", textTransform: "uppercase", letterSpacing: "0.08em" }}>STRC Settings</h3>
+            <Input label="Share Price" value={price} onChange={setPrice} suffix="$" help="STRC pegged ~$100" />
+            <Input label="Starting Dividend Yield" value={divStart} onChange={setDivStart} suffix="%" step={0.25} min={0} max={30} />
+            <Input label="Ending Dividend Yield" value={divEnd} onChange={setDivEnd} suffix="%" step={0.25} min={0} max={30} help="Rate at retirement (linear taper)" />
+            <Input label="Dividend Reinvestment" value={reinvest} onChange={setReinvest} suffix="%" step={5} min={0} max={100} help="% of dividends reinvested" />
+          </div>
+          <div style={{ borderTop: `1px solid ${C.border}`, margin: "10px 0", paddingTop: 10 }}>
+            <h3 style={{ fontSize: 12, fontWeight: 700, color: C.orange, margin: "0 0 12px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Comparison</h3>
+            <Input label="Inflation Rate" value={inflation} onChange={setInflation} suffix="%" step={0.5} min={0} max={25} />
+            <Input label="Avg SS Benefit (Mo)" value={avgSS} onChange={setAvgSS} suffix="$" step={50} />
+            <Input label="Max SS Benefit (Mo)" value={maxSS} onChange={setMaxSS} suffix="$" step={50} />
+          </div>
+        </>
+      );
+
+      return (
+        <div style={{ padding: "20px 16px", maxWidth: 1240, margin: "0 auto" }}>
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <div style={{ width: 34, height: 34, background: C.orange, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <span style={{ color: C.white, fontWeight: 800, fontSize: 17 }}>S</span>
+            </div>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: C.black }}>STRC Retirement Model</h1>
+          </div>
+          <p style={{ fontSize: 13, color: C.gray, marginBottom: 20, lineHeight: 1.5 }}>
+            Digital Social Security — What happens when Gen Z allocates their 6.2% payroll tax to STRC instead?
+          </p>
+
+          {/* Mobile toggle */}
+          <button onClick={() => setMobileInputs(!mobileInputs)}
+            style={{ display: "none", width: "100%", padding: "10px", marginBottom: 16, background: C.black, color: C.white, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "Inter, Arial" }}
+            className="mobile-toggle">
+            {mobileInputs ? "Hide Assumptions" : "Edit Assumptions"}
+          </button>
+
+          <div className="dashboard-layout" style={{ display: "flex", gap: 20 }}>
+            {/* Sidebar */}
+            <div className="sidebar" style={{ width: 270, flexShrink: 0 }}>
+              <div className="sidebar-inner" style={{ background: C.white, borderRadius: 12, padding: 18, border: `1px solid ${C.border}`, position: "sticky", top: 16 }}>
+                {inputPanel}
+              </div>
+            </div>
+
+            {/* Main */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {s && (
+                <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 18 }}>
+                  <Stat dark label="Portfolio at Retirement" value={fmt$(s.pv)} sub={`${fmtFull(s.cumC)} in → ${s.mult.toFixed(1)}x`} />
+                  <Stat label="Monthly Dividend" value={fmt$(s.moDiv)} sub={`${s.vsAvg.toFixed(1)}x avg SS (${fmt$(avgSS)})`} />
+                  <Stat label="Shares Owned" value={Math.round(s.shares).toLocaleString()} sub={`at $${price}/share`} />
+                  <Stat label="vs Max SS" value={`${s.vsMax.toFixed(1)}x`} sub={`Max SS = ${fmt$(maxSS)}/mo`} />
+                </div>
+              )}
+
+              {/* Tabs */}
+              <div style={{ display: "flex", borderBottom: `2px solid ${C.border}` }}>
+                {[{k:"chart",l:"Portfolio Growth"},{k:"income",l:"Income vs SS"},{k:"table",l:"Yearly Data"}].map(t => (
+                  <button key={t.k} onClick={() => setTab(t.k)}
+                    style={{ padding: "9px 18px", fontSize: 12, fontWeight: 600, fontFamily: "Inter, Arial", color: tab === t.k ? C.orange : C.gray, background: "none", border: "none", borderBottom: tab === t.k ? `2px solid ${C.orange}` : "2px solid transparent", cursor: "pointer", marginBottom: -2 }}>
+                    {t.l}
+                  </button>
+                ))}
+              </div>
+
+              {/* Portfolio Chart */}
+              {tab === "chart" && (
+                <div style={{ background: C.white, borderRadius: "0 0 12px 12px", padding: 22, border: `1px solid ${C.border}`, borderTop: "none" }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>Portfolio Value Over Time</h3>
+                  <p style={{ fontSize: 11, color: C.muted, marginBottom: 18 }}>STRC shares with reinvested ROC dividends, monthly compounding</p>
+                  <ResponsiveContainer width="100%" height={360}>
+                    <AreaChart data={chartData}>
+                      <defs><linearGradient id="gO" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={C.orange} stopOpacity={0.25}/><stop offset="95%" stopColor={C.orange} stopOpacity={0.02}/></linearGradient></defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
+                      <XAxis dataKey="age" tick={{fontSize:11,fill:C.gray}} label={{value:"Age",position:"insideBottom",offset:-5,fontSize:11,fill:C.gray}} />
+                      <YAxis tick={{fontSize:11,fill:C.gray}} tickFormatter={fmt$} width={68} />
+                      <Tooltip formatter={(v) => [fmtFull(v), "Portfolio"]} labelFormatter={v => `Age ${v}`} contentStyle={{fontFamily:"Inter,Arial",fontSize:12,borderRadius:8}} />
+                      <Area type="monotone" dataKey="portfolio" stroke={C.orange} fill="url(#gO)" strokeWidth={2.5} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Income Chart */}
+              {tab === "income" && (
+                <div style={{ background: C.white, borderRadius: "0 0 12px 12px", padding: 22, border: `1px solid ${C.border}`, borderTop: "none" }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>Monthly Dividend Income vs Social Security</h3>
+                  <p style={{ fontSize: 11, color: C.muted, marginBottom: 18 }}>STRC monthly income compared to avg and max SS benefits</p>
+                  <ResponsiveContainer width="100%" height={360}>
+                    <ComposedChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
+                      <XAxis dataKey="age" tick={{fontSize:11,fill:C.gray}} label={{value:"Age",position:"insideBottom",offset:-5,fontSize:11,fill:C.gray}} />
+                      <YAxis tick={{fontSize:11,fill:C.gray}} tickFormatter={fmt$} width={68} />
+                      <Tooltip formatter={(v,name) => { const n={monthlyDiv:"STRC Monthly Div",avgLine:"Avg SS",maxLine:"Max SS"}; return [typeof v==="number"?fmtFull(v):v, n[name]||name]; }} labelFormatter={v=>`Age ${v}`} contentStyle={{fontFamily:"Inter,Arial",fontSize:12,borderRadius:8}} />
+                      <Bar dataKey="monthlyDiv" fill={C.orange} opacity={0.7} radius={[2,2,0,0]} />
+                      <Line dataKey={() => avgSS} stroke="#717171" strokeWidth={2} strokeDasharray="8 4" dot={false} name="avgLine" />
+                      <Line dataKey={() => maxSS} stroke="#C00000" strokeWidth={2} strokeDasharray="4 4" dot={false} name="maxLine" />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                  <div style={{ display: "flex", gap: 18, justifyContent: "center", marginTop: 10, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 11, color: C.gray, display: "flex", alignItems: "center", gap: 5 }}><span style={{width:12,height:12,background:C.orange,borderRadius:2,opacity:0.7,display:"inline-block"}}></span> STRC Dividend</span>
+                    <span style={{ fontSize: 11, color: C.gray, display: "flex", alignItems: "center", gap: 5 }}><span style={{width:12,height:2,background:"#717171",display:"inline-block"}}></span> Avg SS (${avgSS.toLocaleString()})</span>
+                    <span style={{ fontSize: 11, color: C.gray, display: "flex", alignItems: "center", gap: 5 }}><span style={{width:12,height:2,background:"#C00000",display:"inline-block"}}></span> Max SS (${maxSS.toLocaleString()})</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Table */}
+              {tab === "table" && (
+                <div style={{ background: C.white, borderRadius: "0 0 12px 12px", padding: 18, border: `1px solid ${C.border}`, borderTop: "none", overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                    <thead>
+                      <tr style={{ background: C.black }}>
+                        {["Yr","Age","Salary","Annual Contrib","Div Rate","Shares","Portfolio","Annual Divs","Mo. Div","Basis"].map(h => (
+                          <th key={h} style={{ padding: "9px 7px", color: C.white, fontWeight: 600, textAlign: "right", fontSize: 10, whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {yearly.map((y,i) => {
+                        const last = i === yearly.length-1;
+                        return (
+                          <tr key={y.year} style={{ background: last ? "#FFF3EB" : i%2===0 ? C.white : C.bg, borderBottom: last ? `2px solid ${C.orange}` : `1px solid ${C.border}`, fontWeight: last ? 700 : 400 }}>
+                            <td style={{padding:"6px 7px",textAlign:"right"}}>{y.year}</td>
+                            <td style={{padding:"6px 7px",textAlign:"right"}}>{y.age}</td>
+                            <td style={{padding:"6px 7px",textAlign:"right"}}>{fmtFull(y.salary)}</td>
+                            <td style={{padding:"6px 7px",textAlign:"right"}}>{fmtFull(y.annContrib)}</td>
+                            <td style={{padding:"6px 7px",textAlign:"right"}}>{(y.divRate*100).toFixed(2)}%</td>
+                            <td style={{padding:"6px 7px",textAlign:"right"}}>{y.shares.toFixed(1)}</td>
+                            <td style={{padding:"6px 7px",textAlign:"right",color:last?C.orange:C.black}}>{fmtFull(y.portfolio)}</td>
+                            <td style={{padding:"6px 7px",textAlign:"right"}}>{fmtFull(y.annDiv)}</td>
+                            <td style={{padding:"6px 7px",textAlign:"right",color:last?C.orange:C.black}}>{fmtFull(y.moDiv)}</td>
+                            <td style={{padding:"6px 7px",textAlign:"right"}}>{fmtFull(y.basis)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* SS Comparison */}
+              {s && (
+                <div style={{ background: C.black, borderRadius: 12, padding: 22, marginTop: 18 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: C.orange, marginBottom: 14 }}>If STRC Replaced Social Security for Gen Z</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                    {[
+                      { l: "Total Contributed", v: fmtFull(s.cumC), sub: "Same 6.2% — identical dollars in", c: C.white },
+                      { l: "Portfolio at Retirement", v: fmtFull(s.pv), sub: "SS has no investable asset", c: C.orange },
+                      { l: "Monthly Income (STRC)", v: fmtFull(s.moDiv), c: C.orange },
+                      { l: "Monthly Income (Avg SS)", v: fmtFull(avgSS), c: "#717171" },
+                    ].map(item => (
+                      <div key={item.l}>
+                        <div style={{ fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>{item.l}</div>
+                        <div style={{ fontSize: 19, fontWeight: 700, color: item.c }}>{item.v}</div>
+                        {item.sub && <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{item.sub}</div>}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ borderTop: "1px solid #333", marginTop: 18, paddingTop: 14, display: "flex", gap: 20, flexWrap: "wrap" }}>
+                    {[
+                      { l: "Inheritable", strc: "Yes — passes to heirs", ss: "No — dies with you" },
+                      { l: "Tax Treatment", strc: "ROC — deferred until sale", ss: "Taxed as income (up to 85%)" },
+                      { l: "Ownership", strc: "You own the asset", ss: "No asset — just a promise" },
+                    ].map(r => (
+                      <div key={r.l} style={{ flex: 1, minWidth: 140 }}>
+                        <div style={{ fontSize: 10, color: C.muted, textTransform: "uppercase", marginBottom: 5 }}>{r.l}</div>
+                        <div style={{ fontSize: 11, color: C.orange, fontWeight: 600, marginBottom: 2 }}>{r.strc}</div>
+                        <div style={{ fontSize: 11, color: "#717171" }}>{r.ss}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <p style={{ fontSize: 9, color: C.muted, marginTop: 14, lineHeight: 1.5 }}>
+                This model is for illustrative purposes only. Assumptions include monthly compounding, linear dividend rate taper, constant share price, and ROC tax treatment. This is not financial advice. Past performance and current dividend rates do not guarantee future results.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
